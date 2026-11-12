@@ -10,9 +10,9 @@ android {
     signingConfigs {
         create("hruskaStable") {
             storeFile = file(System.getenv("HRUSKA_SIGNING_STORE") ?: "missing-hruska-signing-key")
-            storePassword = System.getenv("HRUSKA_SIGNING_PASSWORD") ?: ""
+            storePassword = "android"
             keyAlias = "hruska"
-            keyPassword = System.getenv("HRUSKA_SIGNING_PASSWORD") ?: ""
+            keyPassword = "android"
         }
     }
     buildTypes {

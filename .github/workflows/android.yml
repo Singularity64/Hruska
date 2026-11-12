@@ -33,12 +33,7 @@ jobs:
       - name: Build debug APK
         env:
           HRUSKA_SIGNING_STORE: ${{ runner.temp }}/hruska-upload.jks
-          HRUSKA_SIGNING_PASSWORD: ${{ secrets.HRUSKA_SIGNING_PASSWORD }}
         run: |
-          if [ -z "$HRUSKA_SIGNING_PASSWORD" ]; then
-            echo "::error::Missing HRUSKA_SIGNING_PASSWORD repository secret"
-            exit 1
-          fi
           gradle :app:assembleDebug --no-daemon
       - uses: actions/upload-artifact@v4
         with:
