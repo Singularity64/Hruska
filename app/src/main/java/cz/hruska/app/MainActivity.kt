@@ -53,7 +53,7 @@ class MainActivity : ComponentActivity() {
    val colors=darkColorScheme(primary=Indigo, onPrimary=Color.White, background=Dark, onBackground=Color.White, surface=Surface, onSurface=Color.White, surfaceVariant=Color(0xFF292B39))
    MaterialTheme(colorScheme=colors) {
     Surface(modifier=Modifier.fillMaxSize(),color=Dark) {
-     Column(Modifier.fillMaxSize().padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
       Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
        if(screen!=0) IconButton(onClick={back()}) { Icon(Icons.Default.ArrowBack,"Zpět") }
        Text(if(screen==0) "HRUŠKA" else if(screen==1) "Vyber linku" else routes.getJSONObject(selected).optString("name"),modifier=Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
