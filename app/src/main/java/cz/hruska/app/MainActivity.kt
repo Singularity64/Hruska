@@ -26,6 +26,14 @@ import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
 
+private fun validGps(value: String): Boolean {
+ val parts = value.trim().split(",")
+ if(parts.size != 2) return false
+ val lat = parts[0].trim().toDoubleOrNull() ?: return false
+ val lon = parts[1].trim().toDoubleOrNull() ?: return false
+ return lat in -90.0..90.0 && lon in -180.0..180.0
+}
+
 private val Indigo = Color(0xFF1B1EA1)
 private val Dark = Color(0xFF101116)
 private val Surface = Color(0xFF1C1E28)
@@ -41,6 +49,7 @@ class MainActivity : ComponentActivity() {
    var edit by remember { mutableStateOf(false) }
    var name by remember { mutableStateOf("") }
    var address by remember { mutableStateOf("") }
+   var gps by remember { mutableStateOf("") }
    var note by remember { mutableStateOf("") }
    var query by remember { mutableStateOf("") }
    var notesMode by remember { mutableStateOf(false) }
@@ -95,13 +104,15 @@ class MainActivity : ComponentActivity() {
          OutlinedTextField(name,{name=it},modifier=Modifier.fillMaxWidth(),label={Text("Název linky")})
          Button(onClick={r.put("name",name.trim());save(routes);edit=false},enabled=name.isNotBlank(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Uložit název")}
          HorizontalDivider()
-         OutlinedTextField(address,{address=it},modifier=Modifier.fillMaxWidth(),label={Text("Adresa zastávky")})
+         OutlinedTextField(address,{address=it},modifier=Modifier.fillMaxWidth(),label={Text("Adresa zastávky (nepovinná při GPS)")})
+         OutlinedTextField(gps,{gps=it},modifier=Modifier.fillMaxWidth(),label={Text("GPS souřadnice (nepovinné)")},placeholder={Text("49.8209, 18.2625")},singleLine=true,isError=gps.isNotBlank() && !validGps(gps))
+         if(gps.isNotBlank() && !validGps(gps)) Text("Zadej souřadnice jako šířka, délka (např. 49.8209, 18.2625)",color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
          OutlinedTextField(note,{note=it},modifier=Modifier.fillMaxWidth(),label={Text("Poznámka")})
-         Button(onClick={stops.put(JSONObject().put("address",address.trim()).put("note",note).put("done",false));save(routes);address="";note=""},enabled=address.isNotBlank(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Přidat zastávku")}
+         Button(onClick={stops.put(JSONObject().put("address",address.trim()).put("gps",gps.trim()).put("note",note).put("done",false));save(routes);address="";gps="";note=""},enabled=(address.isNotBlank() || gps.isNotBlank()) && (gps.isBlank() || validGps(gps)),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Přidat zastávku")}
         } else OutlinedTextField(query,{query=it;notesMode=false},modifier=Modifier.fillMaxWidth(),label={Text("Hledat adresu")},leadingIcon={Icon(Icons.Default.Search,null)},singleLine=true)
         val found=(0 until stops.length()).filter { i ->
          val s=stops.getJSONObject(i)
-         query.isBlank() || (if(notesMode)s.optString("note") else s.optString("address")).contains(query,true)
+         query.isBlank() || (if(notesMode)s.optString("note") else s.optString("address")+" "+s.optString("gps")).contains(query,true)
         }
         if(!edit && query.isNotBlank() && found.isEmpty() && !notesMode) {
          Text("Adresa nenalezena")
@@ -112,7 +123,8 @@ class MainActivity : ComponentActivity() {
           val s=stops.getJSONObject(i)
           ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface),shape=RoundedCornerShape(14.dp)) {
            Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-            Text((i+1).toString()+". "+s.optString("address"),fontWeight=FontWeight.Bold)
+            Text((i+1).toString()+". "+(s.optString("address").ifBlank { "GPS: "+s.optString("gps") }),fontWeight=FontWeight.Bold)
+            if(s.optString("address").isNotBlank() && s.optString("gps").isNotBlank()) Text("GPS: "+s.optString("gps"),color=Color.LightGray)
             if(s.optString("note").isNotBlank()) Text(s.optString("note"),color=Color.LightGray)
             if(edit) {
              Row {
@@ -122,7 +134,7 @@ class MainActivity : ComponentActivity() {
              }
             } else Row(verticalAlignment=Alignment.CenterVertically) {
              Checkbox(s.optBoolean("done"),{s.put("done",it);save(routes)})
-             Button(onClick={context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.google.com/maps/dir/?api=1&destination="+Uri.encode(s.optString("address")))))},colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Navigovat")}
+             Button(onClick={context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.google.com/maps/dir/?api=1&destination="+Uri.encode(s.optString("gps").ifBlank { s.optString("address") }))))},colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Navigovat")}
             }
            }
           }
