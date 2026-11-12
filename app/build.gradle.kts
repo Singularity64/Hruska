@@ -7,6 +7,19 @@ android {
     namespace = "cz.hruska.app"
     compileSdk = 35
     defaultConfig { applicationId = "cz.hruska.app"; minSdk = 26; targetSdk = 35; versionCode = (System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1); versionName = "0.1." + (System.getenv("GITHUB_RUN_NUMBER") ?: "1") }
+    signingConfigs {
+        create("hruskaStable") {
+            storeFile = file(System.getenv("HRUSKA_SIGNING_STORE") ?: "missing-hruska-signing-key")
+            storePassword = System.getenv("HRUSKA_SIGNING_PASSWORD") ?: ""
+            keyAlias = "hruska"
+            keyPassword = System.getenv("HRUSKA_SIGNING_PASSWORD") ?: ""
+        }
+    }
+    buildTypes {
+        getByName("debug") {
+            signingConfig = signingConfigs.getByName("hruskaStable")
+        }
+    }
     buildFeatures { compose = true }
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
