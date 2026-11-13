@@ -411,12 +411,12 @@ class MainActivity : ComponentActivity() {
         LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)){
          items((0 until tripStops.length()).toList()){i->
           val stop=tripStops.getJSONObject(i)
-          Card(modifier=Modifier.fillMaxWidth(),border=BorderStroke(2.dp,routeColor(stop)),colors=CardDefaults.cardColors(containerColor=Surface)){
+          Card(modifier=Modifier.fillMaxWidth(),border=BorderStroke(2.dp,if(stop.optBoolean("done")) Color(0xFF666666) else routeColor(stop)),colors=CardDefaults.cardColors(containerColor=if(stop.optBoolean("done")) Color(0xFF343434) else Surface)){
            Column(Modifier.padding(14.dp)){
-            Text((i+1).toString()+". "+stop.optString("address").ifBlank{"GPS: "+stop.optString("gps")},fontWeight=FontWeight.Bold)
-            if(stop.optString("note").isNotBlank()) Text(stop.optString("note"))
+            Text((i+1).toString()+". "+stop.optString("address").ifBlank{"GPS: "+stop.optString("gps")},fontWeight=FontWeight.Bold,color=if(stop.optBoolean("done")) Color(0xFF999999) else Color.White)
+            if(stop.optString("note").isNotBlank()) Text(stop.optString("note"),color=if(stop.optBoolean("done")) Color(0xFF999999) else Color.White)
             if(stop.optString("turn")=="left" || stop.optString("turn")=="right") {
-             Icon(if(stop.optString("turn")=="left") Icons.Default.ArrowBack else Icons.Default.ArrowForward,if(stop.optString("turn")=="left") "Odbočit doleva" else "Odbočit doprava",modifier=Modifier.size(48.dp),tint=Color(0xFF24C65A))
+             Icon(if(stop.optString("turn")=="left") Icons.Default.ArrowBack else Icons.Default.ArrowForward,if(stop.optString("turn")=="left") "Odbočit doleva" else "Odbočit doprava",modifier=Modifier.size(48.dp),tint=if(stop.optBoolean("done")) Color(0xFF777777) else Color(0xFF24C65A))
             }
             if(tripUnlocked) {
              var position by remember(i,tripData) { mutableStateOf((i+1).toString()) }
