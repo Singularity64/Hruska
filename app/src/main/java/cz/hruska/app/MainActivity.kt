@@ -23,6 +23,9 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.*
@@ -111,6 +114,7 @@ class MainActivity : ComponentActivity() {
       Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
        if(screen!=0) IconButton(onClick={back()}) { Icon(Icons.Default.ArrowBack,"Zpět") }
        Text(if(screen==0) "HRUŠKA" else if(screen==1) "Vyber linku" else if(screen==2) routes.getJSONObject(selected).optString("name") else if(screen==3) "Moje trasy" else if(screen==4) trips.getJSONObject(selectedTrip).optString("name") else if(screen==6) "Kontakty" else "Koš",modifier=Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+       if(screen==0) IconButton(onClick={screen=5}) { Icon(Icons.Default.Delete,"Koš",tint=Color.White) }
        if(screen==2) {
         IconButton(onClick={edit=!edit;name=routes.getJSONObject(selected).optString("name")}) { Icon(Icons.Default.Edit,"Upravit linku") }
         IconButton(onClick={if(unlocked) unlocked=false else askUnlock=true}) { Icon(if(unlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(unlocked) "Zamknout pořadí" else "Odemknout pořadí",tint=if(unlocked) Color(0xFF24C65A) else Color(0xFFE53935)) }
@@ -128,10 +132,21 @@ class MainActivity : ComponentActivity() {
         Icon(Icons.Default.Route,null,Modifier.align(Alignment.CenterHorizontally).size(64.dp),tint=Color.White)
         Text("Plánování rozvozových tras",modifier=Modifier.align(Alignment.CenterHorizontally),color=Color.White)
         Spacer(Modifier.weight(1f))
-        Button(onClick={screen=1},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)) { Text("Vyber linku") }
-        Button(onClick={screen=3},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Moje trasy")}
-        Button(onClick={screen=6;contactsUnlocked=false},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Kontakty")}
-        OutlinedButton(onClick={screen=5},modifier=Modifier.fillMaxWidth()){Text("Koš")}
+        Button(onClick={screen=1},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)) {
+         Icon(Icons.Default.Search,"Hledat linku",tint=Color.White)
+         Spacer(Modifier.width(12.dp))
+         Text("Vyber linku")
+        }
+        Button(onClick={screen=3},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){
+         Icon(Icons.Default.Map,"Mapa",tint=Color.White)
+         Spacer(Modifier.width(12.dp))
+         Text("Moje trasy")
+        }
+        Button(onClick={screen=6;contactsUnlocked=false},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){
+         Icon(Icons.Default.Person,"Kontakty",tint=Color.White)
+         Spacer(Modifier.width(12.dp))
+         Text("Kontakty")
+        }
        }
        1 -> {
         OutlinedTextField(query,{query=it},modifier=Modifier.fillMaxWidth(),label={Text("Hledat linku")},leadingIcon={Icon(Icons.Default.Search,null)},singleLine=true)
@@ -340,10 +355,10 @@ class MainActivity : ComponentActivity() {
             Text("Skupina: "+contact.optString("group","Ostatní"),color=Color.White)
             if(contact.optString("phone").isNotBlank()) Text(contact.optString("phone"),color=Color.White)
             if(contact.optString("note").isNotBlank()) Text(contact.optString("note"),color=Color.White)
-            Row {
+            Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
              if(contact.optString("phone").isNotBlank()) {
-              IconButton(onClick={context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+Uri.encode(contact.optString("phone")))))}){Icon(Icons.Default.Phone,"Zavolat",tint=Color.White)}
-              IconButton(onClick={context.startActivity(Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+Uri.encode(contact.optString("phone")))))}){Icon(Icons.Default.Sms,"Napsat SMS",tint=Color.White)}
+              IconButton(onClick={context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+Uri.encode(contact.optString("phone")))))},modifier=Modifier.offset(x=(-12).dp)){Icon(Icons.Default.Phone,"Zavolat",tint=Color(0xFF24C65A))}
+              IconButton(onClick={context.startActivity(Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+Uri.encode(contact.optString("phone")))))},modifier=Modifier.offset(x=(-12).dp)){Icon(Icons.Default.Sms,"Napsat SMS",tint=Color(0xFF69C9FF))}
              }
              if(contactsUnlocked) TextButton(onClick={contactName=contact.optString("name");contactPhone=contact.optString("phone");contactNote=contact.optString("note");contactGroup=contact.optString("group","Ostatní");contactEditing=i}){Text("Upravit",color=Color.White)}
              if(contactsUnlocked) TextButton(onClick={contactDeleting=i}){Text("Smazat",color=Color(0xFFE53935))}
