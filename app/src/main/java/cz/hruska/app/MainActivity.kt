@@ -65,6 +65,11 @@ class MainActivity : ComponentActivity() {
    var contactName by remember { mutableStateOf("") }
    var contactPhone by remember { mutableStateOf("") }
    var contactNote by remember { mutableStateOf("") }
+   var contactGroup by remember { mutableStateOf("Ostatní") }
+   var groupData by remember { mutableStateOf(prefs.getString("contact_groups", "[]") ?: "[]") }
+   var newGroup by remember { mutableStateOf("") }
+   var addingGroup by remember { mutableStateOf(false) }
+   var groupExpanded by remember { mutableStateOf(false) }
    var contactEditing by remember { mutableIntStateOf(-2) }
    var contactDeleting by remember { mutableIntStateOf(-1) }
    var contactsUnlocked by remember { mutableStateOf(false) }
@@ -90,6 +95,8 @@ class MainActivity : ComponentActivity() {
    val routes = remember(data) { JSONArray(data) }
    val trips = remember(tripData) { JSONArray(tripData) }
    val contacts = remember(contactsData) { JSONArray(contactsData) }
+   val customGroups=remember(groupData){JSONArray(groupData)}
+   val groups=remember(groupData){listOf("Dispečink","Servis","Řidič","Podnik","Ostatní")+(0 until customGroups.length()).map{customGroups.optString(it)}}
    fun saveContacts(a: JSONArray) { contactsData=a.toString();prefs.edit().putString("contacts",contactsData).apply() }
    fun saveTrips(a: JSONArray) { tripData=a.toString();prefs.edit().putString("trips",tripData).apply() }
    fun save(a: JSONArray) { data = a.toString(); prefs.edit().putString("routes", data).apply() }
@@ -295,9 +302,17 @@ class MainActivity : ComponentActivity() {
           OutlinedTextField(contactName,{contactName=it},label={Text("Jméno")},modifier=Modifier.fillMaxWidth())
           OutlinedTextField(contactPhone,{contactPhone=it},label={Text("Telefon")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone),modifier=Modifier.fillMaxWidth())
           OutlinedTextField(contactNote,{contactNote=it},label={Text("Poznámka")},modifier=Modifier.fillMaxWidth())
+          Box {
+           OutlinedButton(onClick={groupExpanded=true},modifier=Modifier.fillMaxWidth()){Text("Skupina: "+contactGroup,color=Color.White)}
+           DropdownMenu(expanded=groupExpanded,onDismissRequest={groupExpanded=false}){
+            groups.forEach { g ->
+             DropdownMenuItem(text={Text(g)},onClick={contactGroup=g;groupExpanded=false})
+            }
+           }
+          }
          }
         },confirmButton={TextButton(onClick={
-         val item=JSONObject().put("name",contactName.trim()).put("phone",contactPhone.trim()).put("note",contactNote.trim())
+         val item=JSONObject().put("name",contactName.trim()).put("phone",contactPhone.trim()).put("note",contactNote.trim()).put("group",contactGroup)
          if(contactEditing==-1) contacts.put(item) else contacts.put(contactEditing,item)
          saveContacts(contacts);contactEditing=-2
         },enabled=contactName.isNotBlank()){Text("Uložit",color=Color.White)}},dismissButton={TextButton(onClick={contactEditing=-2}){Text("Zrušit",color=Color.White)}})
@@ -305,17 +320,26 @@ class MainActivity : ComponentActivity() {
          val remaining=JSONArray((0 until contacts.length()).filter{it!=contactDeleting}.map{contacts.getJSONObject(it)})
          saveContacts(remaining);contactDeleting=-1
         }){Text("Ano, smazat",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={contactDeleting=-1}){Text("Zrušit",color=Color.White)}})
-        Button(onClick={contactName="";contactPhone="";contactNote="";contactEditing=-1},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("+ Nový kontakt")}
+        if(addingGroup) AlertDialog(onDismissRequest={addingGroup=false},title={Text("Nová skupina")},text={OutlinedTextField(newGroup,{newGroup=it},label={Text("Název skupiny")})},confirmButton={TextButton(onClick={
+         val candidate=newGroup.trim()
+         if(candidate.isNotBlank() && groups.none{it.equals(candidate,true)}) {
+          customGroups.put(candidate);groupData=customGroups.toString();prefs.edit().putString("contact_groups",groupData).apply()
+         }
+         newGroup="";addingGroup=false
+        },enabled=newGroup.isNotBlank() && groups.none{it.equals(newGroup.trim(),true)}){Text("Přidat",color=Color.White)}},dismissButton={TextButton(onClick={addingGroup=false}){Text("Zrušit",color=Color.White)}})
+        OutlinedButton(onClick={newGroup="";addingGroup=true},modifier=Modifier.fillMaxWidth()){Text("+ Přidat skupinu",color=Color.White)}
+        Button(onClick={contactName="";contactPhone="";contactNote="";contactGroup="Ostatní";contactEditing=-1},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("+ Nový kontakt")}
         LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)){
          items((0 until contacts.length()).sortedBy{contacts.getJSONObject(it).optString("name").lowercase()}){i->
           val contact=contacts.getJSONObject(i)
           ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface)){
            Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
             Text(contact.optString("name"),fontWeight=FontWeight.Bold,color=Color.White)
+            Text("Skupina: "+contact.optString("group","Ostatní"),color=Color.White)
             if(contact.optString("phone").isNotBlank()) Text(contact.optString("phone"),color=Color.White)
             if(contact.optString("note").isNotBlank()) Text(contact.optString("note"),color=Color.White)
             Row {
-             TextButton(onClick={contactName=contact.optString("name");contactPhone=contact.optString("phone");contactNote=contact.optString("note");contactEditing=i}){Text("Upravit",color=Color.White)}
+             TextButton(onClick={contactName=contact.optString("name");contactPhone=contact.optString("phone");contactNote=contact.optString("note");contactGroup=contact.optString("group","Ostatní");contactEditing=i}){Text("Upravit",color=Color.White)}
              if(contactsUnlocked) TextButton(onClick={contactDeleting=i}){Text("Smazat",color=Color(0xFFE53935))}
             }
            }
