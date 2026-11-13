@@ -164,7 +164,7 @@ class MainActivity : ComponentActivity() {
         LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(10.dp)) {
          items((0 until routes.length()).filter{routes.getJSONObject(it).optString("name").contains(query,true)}) { i ->
           val r=routes.getJSONObject(i)
-          ElevatedCard(onClick={selected=i;screen=2;query="";edit=false;unlocked=false},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),border=BorderStroke(2.dp,routeColor(r)),colors=CardDefaults.elevatedCardColors(containerColor=Surface)) {
+          Card(onClick={selected=i;screen=2;query="";edit=false;unlocked=false},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),border=BorderStroke(2.dp,routeColor(r)),colors=CardDefaults.cardColors(containerColor=Surface)) {
            Column(Modifier.padding(18.dp)) {
             Text(r.optString("name"),fontWeight=FontWeight.Bold)
             Text(r.optJSONArray("stops")?.length().toString()+" zastávek",color=Color.White)
@@ -316,7 +316,7 @@ class MainActivity : ComponentActivity() {
         LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)) {
          items(indices){i->
           val trip=trips.getJSONObject(i)
-          ElevatedCard(modifier=Modifier.fillMaxWidth(),border=BorderStroke(2.dp,routeColor(trip)),colors=CardDefaults.elevatedCardColors(containerColor=Surface)){
+          Card(modifier=Modifier.fillMaxWidth(),border=BorderStroke(2.dp,routeColor(trip)),colors=CardDefaults.cardColors(containerColor=Surface)){
            Column(Modifier.padding(14.dp)){
             Text(trip.optString("name"),fontWeight=FontWeight.Bold)
             Text(trip.getJSONArray("stops").length().toString()+" zastávek",color=Color.White)
@@ -403,7 +403,7 @@ class MainActivity : ComponentActivity() {
         LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)){
          items((0 until tripStops.length()).toList()){i->
           val stop=tripStops.getJSONObject(i)
-          ElevatedCard(modifier=Modifier.fillMaxWidth(),border=BorderStroke(2.dp,routeColor(trips.getJSONObject(selectedTrip))),colors=CardDefaults.elevatedCardColors(containerColor=Surface)){
+          Card(modifier=Modifier.fillMaxWidth(),border=BorderStroke(2.dp,routeColor(trips.getJSONObject(selectedTrip))),colors=CardDefaults.cardColors(containerColor=Surface)){
            Column(Modifier.padding(14.dp)){
             Text((i+1).toString()+". "+stop.optString("address").ifBlank{"GPS: "+stop.optString("gps")},fontWeight=FontWeight.Bold)
             if(stop.optString("note").isNotBlank()) Text(stop.optString("note"))
