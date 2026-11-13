@@ -3,6 +3,8 @@ package cz.hruska.app
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.compose.BackHandler
@@ -45,6 +47,9 @@ class MainActivity : ComponentActivity() {
   setContent {
    var data by remember { mutableStateOf(prefs.getString("routes", "[]") ?: "[]") }
    var screen by remember { mutableIntStateOf(0) }
+   var tripData by remember { mutableStateOf(prefs.getString("trips", "[]") ?: "[]") }
+   var selectedTrip by remember { mutableIntStateOf(-1) }
+   var deletingTrip by remember { mutableIntStateOf(-1) }
    var selected by remember { mutableIntStateOf(-1) }
    var edit by remember { mutableStateOf(false) }
    var name by remember { mutableStateOf("") }
@@ -58,8 +63,10 @@ class MainActivity : ComponentActivity() {
    var confirmDeleteStop by remember { mutableStateOf(false) }
    val context = LocalContext.current
    val routes = remember(data) { JSONArray(data) }
+   val trips = remember(tripData) { JSONArray(tripData) }
+   fun saveTrips(a: JSONArray) { tripData=a.toString();prefs.edit().putString("trips",tripData).apply() }
    fun save(a: JSONArray) { data = a.toString(); prefs.edit().putString("routes", data).apply() }
-   fun back() { if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query=""} else screen=0 }
+   fun back() { if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query=""} else if(screen==4) screen=3 else screen=0 }
    BackHandler(screen!=0 || edit) { back() }
    val colors=darkColorScheme(primary=Indigo, onPrimary=Color.White, background=Dark, onBackground=Color.White, surface=Surface, onSurface=Color.White, surfaceVariant=Color(0xFF292B39))
    MaterialTheme(colorScheme=colors) {
@@ -67,7 +74,7 @@ class MainActivity : ComponentActivity() {
      Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
       Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
        if(screen!=0) IconButton(onClick={back()}) { Icon(Icons.Default.ArrowBack,"Zpět") }
-       Text(if(screen==0) "HRUŠKA" else if(screen==1) "Vyber linku" else routes.getJSONObject(selected).optString("name"),modifier=Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+       Text(if(screen==0) "HRUŠKA" else if(screen==1) "Vyber linku" else if(screen==2) routes.getJSONObject(selected).optString("name") else if(screen==3) "Moje trasy" else if(screen==4) trips.getJSONObject(selectedTrip).optString("name") else "Koš",modifier=Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
        if(screen==2) IconButton(onClick={edit=!edit;name=routes.getJSONObject(selected).optString("name")}) { Icon(Icons.Default.Edit,"Upravit linku") }
       }
       when(screen) {
@@ -77,6 +84,8 @@ class MainActivity : ComponentActivity() {
         Text("Plánování rozvozových tras",modifier=Modifier.align(Alignment.CenterHorizontally),color=Color.LightGray)
         Spacer(Modifier.weight(1f))
         Button(onClick={screen=1},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)) { Text("Vyber linku") }
+        Button(onClick={screen=3},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Moje trasy")}
+        OutlinedButton(onClick={screen=5},modifier=Modifier.fillMaxWidth()){Text("Koš")}
        }
        1 -> {
         OutlinedTextField(query,{query=it},modifier=Modifier.fillMaxWidth(),label={Text("Hledat linku")},leadingIcon={Icon(Icons.Default.Search,null)},singleLine=true)
@@ -148,9 +157,25 @@ class MainActivity : ComponentActivity() {
          val s=stops.getJSONObject(i)
          query.isBlank() || (if(notesMode)s.optString("note") else s.optString("address")+" "+s.optString("gps")).contains(query,true)
         }
-        if(!edit && query.isNotBlank() && found.isEmpty() && !notesMode) {
-         Text("Adresa nenalezena")
-         OutlinedButton(onClick={notesMode=true}){Text("Prohledat poznámky")}
+        val elsewhere=if(query.isNotBlank()) (0 until routes.length()).filter{it!=selected}.flatMap { ri ->
+         val other=routes.getJSONObject(ri).getJSONArray("stops")
+         (0 until other.length()).mapNotNull { si ->
+          val stop=other.getJSONObject(si)
+          val value=if(notesMode) stop.optString("note") else stop.optString("address")+" "+stop.optString("gps")
+          if(value.contains(query,true)) Pair(ri,stop) else null
+         }
+        } else emptyList()
+        if(!edit && query.isNotBlank() && found.isEmpty() && elsewhere.isEmpty() && !notesMode) {
+         Text("Nenalezeno v žádné lince")
+         OutlinedButton(onClick={notesMode=true}){Text("Prohledat poznámky všech linek")}
+        }
+        if(!edit && query.isNotBlank() && elsewhere.isNotEmpty()) {
+         Text("Výsledky z ostatních linek")
+         elsewhere.take(8).forEach { match ->
+          OutlinedButton(onClick={selected=match.first;query="";notesMode=false},modifier=Modifier.fillMaxWidth()) {
+           Text(routes.getJSONObject(match.first).optString("name")+": "+match.second.optString("address").ifBlank{"GPS "+match.second.optString("gps")})
+          }
+         }
         }
         LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)) {
          items(found) { i ->
@@ -174,6 +199,57 @@ class MainActivity : ComponentActivity() {
             } else Row(verticalAlignment=Alignment.CenterVertically) {
              Checkbox(s.optBoolean("done"),{s.put("done",it);save(routes)})
              Button(onClick={context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.google.com/maps/dir/?api=1&destination="+Uri.encode(s.optString("gps").ifBlank { s.optString("address") }))))},colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Navigovat")}
+            }
+           }
+          }
+         }
+        }
+        if(!edit && query.isBlank()) Button(onClick={
+         val chosen=JSONArray()
+         for(i in 0 until stops.length()) {
+          val stop=stops.getJSONObject(i)
+          if(stop.optBoolean("done")) chosen.put(JSONObject(stop.toString()).put("done",false))
+         }
+         val today=LocalDate.now()
+         trips.put(JSONObject().put("name",r.optString("name")+" • "+today.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))).put("date",today.toString()).put("createdAt",System.currentTimeMillis()).put("deleted",false).put("stops",chosen))
+         saveTrips(trips);screen=3
+        },enabled=(0 until stops.length()).any{stops.getJSONObject(it).optBoolean("done")},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Sestavit trasu")}
+       }
+       3,5 -> {
+        val trash=screen==5
+        val indices=(0 until trips.length()).filter{trips.getJSONObject(it).optBoolean("deleted")==trash}.sortedWith(compareByDescending<Int>{trips.getJSONObject(it).optString("date")}.thenByDescending{trips.getJSONObject(it).optLong("createdAt")})
+        LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+         items(indices){i->
+          val trip=trips.getJSONObject(i)
+          ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface)){
+           Column(Modifier.padding(14.dp)){
+            Text(trip.optString("name"),fontWeight=FontWeight.Bold)
+            Text(trip.getJSONArray("stops").length().toString()+" zastávek",color=Color.LightGray)
+            Row {
+             if(trash) TextButton(onClick={trip.put("deleted",false);saveTrips(trips)}){Text("Obnovit")}
+             else {
+              TextButton(onClick={selectedTrip=i;screen=4}){Text("Otevřít")}
+              TextButton(onClick={deletingTrip=i}){Text("Smazat")}
+             }
+            }
+           }
+          }
+         }
+        }
+        if(deletingTrip>=0 && !trash) AlertDialog(onDismissRequest={deletingTrip=-1},title={Text("Přesunout do koše?")},text={Text("Trasu bude možné obnovit.")},confirmButton={TextButton(onClick={trips.getJSONObject(deletingTrip).put("deleted",true);saveTrips(trips);deletingTrip=-1}){Text("Přesunout")}},dismissButton={TextButton(onClick={deletingTrip=-1}){Text("Zrušit")}})
+       }
+       4 -> {
+        val tripStops=trips.getJSONObject(selectedTrip).getJSONArray("stops")
+        LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)){
+         items((0 until tripStops.length()).toList()){i->
+          val stop=tripStops.getJSONObject(i)
+          ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface)){
+           Column(Modifier.padding(14.dp)){
+            Text((i+1).toString()+". "+stop.optString("address").ifBlank{"GPS: "+stop.optString("gps")},fontWeight=FontWeight.Bold)
+            if(stop.optString("note").isNotBlank()) Text(stop.optString("note"))
+            Row(verticalAlignment=Alignment.CenterVertically){
+             Checkbox(stop.optBoolean("done"),{stop.put("done",it);saveTrips(trips)})
+             Button(onClick={context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.google.com/maps/dir/?api=1&destination="+Uri.encode(stop.optString("gps").ifBlank{stop.optString("address")}))))},colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Navigovat")}
             }
            }
           }
