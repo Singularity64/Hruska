@@ -54,6 +54,8 @@ class MainActivity : ComponentActivity() {
    var query by remember { mutableStateOf("") }
    var notesMode by remember { mutableStateOf(false) }
    var addLine by remember { mutableStateOf(false) }
+   var editingStop by remember { mutableIntStateOf(-1) }
+   var confirmDeleteStop by remember { mutableStateOf(false) }
    val context = LocalContext.current
    val routes = remember(data) { JSONArray(data) }
    fun save(a: JSONArray) { data = a.toString(); prefs.edit().putString("routes", data).apply() }
@@ -100,6 +102,38 @@ class MainActivity : ComponentActivity() {
        2 -> {
         val r=routes.getJSONObject(selected)
         val stops=r.getJSONArray("stops")
+        if(editingStop >= 0 && editingStop < stops.length()) {
+         AlertDialog(
+          onDismissRequest={editingStop=-1;confirmDeleteStop=false},
+          title={Text(if(confirmDeleteStop) "Smazat adresu?" else "Upravit zastávku")},
+          text={
+           if(confirmDeleteStop) Text("Chcete opravdu adresu smazat? Tuto akci nelze vrátit zpět.")
+           else Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(address,{address=it},label={Text("Adresa")},modifier=Modifier.fillMaxWidth())
+            OutlinedTextField(gps,{gps=it},label={Text("GPS souřadnice (nepovinné)")},modifier=Modifier.fillMaxWidth(),singleLine=true,isError=gps.isNotBlank() && !validGps(gps))
+            if(gps.isNotBlank() && !validGps(gps)) Text("Formát: 49.8209, 18.2625",color=MaterialTheme.colorScheme.error)
+            OutlinedTextField(note,{note=it},label={Text("Poznámka")},modifier=Modifier.fillMaxWidth())
+           }
+          },
+          confirmButton={
+           if(confirmDeleteStop) TextButton(onClick={
+            val remaining=(0 until stops.length()).filter{it!=editingStop}.map{stops.getJSONObject(it)}
+            r.put("stops",JSONArray(remaining));save(routes);editingStop=-1;confirmDeleteStop=false
+           }){Text("Ano, smazat",color=MaterialTheme.colorScheme.error)}
+           else TextButton(onClick={
+            stops.getJSONObject(editingStop).put("address",address.trim()).put("gps",gps.trim()).put("note",note)
+            save(routes);editingStop=-1
+           },enabled=(address.isNotBlank() || gps.isNotBlank()) && (gps.isBlank() || validGps(gps))){Text("Uložit")}
+          },
+          dismissButton={
+           if(confirmDeleteStop) TextButton(onClick={confirmDeleteStop=false}){Text("Ne, ponechat")}
+           else Row {
+            TextButton(onClick={confirmDeleteStop=true}){Text("Smazat",color=MaterialTheme.colorScheme.error)}
+            TextButton(onClick={editingStop=-1}){Text("Zrušit")}
+           }
+          }
+         )
+        }
         if(edit) {
          OutlinedTextField(name,{name=it},modifier=Modifier.fillMaxWidth(),label={Text("Název linky")})
          Button(onClick={r.put("name",name.trim());save(routes);edit=false},enabled=name.isNotBlank(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Uložit název")}
@@ -123,7 +157,12 @@ class MainActivity : ComponentActivity() {
           val s=stops.getJSONObject(i)
           ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface),shape=RoundedCornerShape(14.dp)) {
            Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-            Text((i+1).toString()+". "+(s.optString("address").ifBlank { "GPS: "+s.optString("gps") }),fontWeight=FontWeight.Bold)
+            Row(verticalAlignment=Alignment.CenterVertically) {
+             Text((i+1).toString()+". "+(s.optString("address").ifBlank { "GPS: "+s.optString("gps") }),modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold)
+             IconButton(onClick={editingStop=i;address=s.optString("address");gps=s.optString("gps");note=s.optString("note");confirmDeleteStop=false},modifier=Modifier.size(40.dp)) {
+              Icon(Icons.Default.Edit,contentDescription="Upravit adresu",modifier=Modifier.size(19.dp),tint=Color(0xFF9295FF))
+             }
+            }
             if(s.optString("address").isNotBlank() && s.optString("gps").isNotBlank()) Text("GPS: "+s.optString("gps"),color=Color.LightGray)
             if(s.optString("note").isNotBlank()) Text(s.optString("note"),color=Color.LightGray)
             if(edit) {
