@@ -61,6 +61,14 @@ class MainActivity : ComponentActivity() {
    var data by remember { mutableStateOf(prefs.getString("routes", "[]") ?: "[]") }
    var screen by remember { mutableIntStateOf(0) }
    var tripData by remember { mutableStateOf(prefs.getString("trips", "[]") ?: "[]") }
+   var contactsData by remember { mutableStateOf(prefs.getString("contacts", "[]") ?: "[]") }
+   var contactName by remember { mutableStateOf("") }
+   var contactPhone by remember { mutableStateOf("") }
+   var contactNote by remember { mutableStateOf("") }
+   var contactEditing by remember { mutableIntStateOf(-2) }
+   var contactDeleting by remember { mutableIntStateOf(-1) }
+   var contactsUnlocked by remember { mutableStateOf(false) }
+   var askContactsUnlock by remember { mutableStateOf(false) }
    var selectedTrip by remember { mutableIntStateOf(-1) }
    var deletingTrip by remember { mutableIntStateOf(-1) }
    var selected by remember { mutableIntStateOf(-1) }
@@ -81,9 +89,11 @@ class MainActivity : ComponentActivity() {
    val context = LocalContext.current
    val routes = remember(data) { JSONArray(data) }
    val trips = remember(tripData) { JSONArray(tripData) }
+   val contacts = remember(contactsData) { JSONArray(contactsData) }
+   fun saveContacts(a: JSONArray) { contactsData=a.toString();prefs.edit().putString("contacts",contactsData).apply() }
    fun saveTrips(a: JSONArray) { tripData=a.toString();prefs.edit().putString("trips",tripData).apply() }
    fun save(a: JSONArray) { data = a.toString(); prefs.edit().putString("routes", data).apply() }
-   fun back() { unlocked=false;askUnlock=false;tripUnlocked=false;askTripUnlock=false; if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query="";unlocked=false} else if(screen==4) screen=3 else screen=0 }
+   fun back() { unlocked=false;askUnlock=false;tripUnlocked=false;askTripUnlock=false;contactsUnlocked=false;askContactsUnlock=false;contactEditing=-2; if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query="";unlocked=false} else if(screen==4) screen=3 else screen=0 }
    BackHandler(screen!=0 || edit) { back() }
    val colors=darkColorScheme(primary=Indigo, onPrimary=Color.White, background=Dark, onBackground=Color.White, surface=Surface, onSurface=Color.White, surfaceVariant=Color(0xFF292B39))
    MaterialTheme(colorScheme=colors) {
@@ -91,10 +101,13 @@ class MainActivity : ComponentActivity() {
      Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
       Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
        if(screen!=0) IconButton(onClick={back()}) { Icon(Icons.Default.ArrowBack,"Zpět") }
-       Text(if(screen==0) "HRUŠKA" else if(screen==1) "Vyber linku" else if(screen==2) routes.getJSONObject(selected).optString("name") else if(screen==3) "Moje trasy" else if(screen==4) trips.getJSONObject(selectedTrip).optString("name") else "Koš",modifier=Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
+       Text(if(screen==0) "HRUŠKA" else if(screen==1) "Vyber linku" else if(screen==2) routes.getJSONObject(selected).optString("name") else if(screen==3) "Moje trasy" else if(screen==4) trips.getJSONObject(selectedTrip).optString("name") else if(screen==6) "Kontakty" else "Koš",modifier=Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
        if(screen==2) {
         IconButton(onClick={edit=!edit;name=routes.getJSONObject(selected).optString("name")}) { Icon(Icons.Default.Edit,"Upravit linku") }
         IconButton(onClick={if(unlocked) unlocked=false else askUnlock=true}) { Icon(if(unlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(unlocked) "Zamknout pořadí" else "Odemknout pořadí",tint=if(unlocked) Color(0xFF24C65A) else Color(0xFFE53935)) }
+       }
+       if(screen==6) IconButton(onClick={if(contactsUnlocked) contactsUnlocked=false else askContactsUnlock=true}) {
+        Icon(if(contactsUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(contactsUnlocked) "Zamknout mazání" else "Odemknout mazání",tint=if(contactsUnlocked) Color(0xFF24C65A) else Color(0xFFE53935))
        }
        if(screen==4) IconButton(onClick={if(tripUnlocked) tripUnlocked=false else askTripUnlock=true}) {
         Icon(if(tripUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(tripUnlocked) "Zamknout pořadí" else "Odemknout pořadí",tint=if(tripUnlocked) Color(0xFF24C65A) else Color(0xFFE53935))
@@ -108,6 +121,7 @@ class MainActivity : ComponentActivity() {
         Spacer(Modifier.weight(1f))
         Button(onClick={screen=1},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)) { Text("Vyber linku") }
         Button(onClick={screen=3},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Moje trasy")}
+        Button(onClick={screen=6;contactsUnlocked=false},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Kontakty")}
         OutlinedButton(onClick={screen=5},modifier=Modifier.fillMaxWidth()){Text("Koš")}
        }
        1 -> {
@@ -273,6 +287,41 @@ class MainActivity : ComponentActivity() {
          }
         }
         if(deletingTrip>=0 && !trash) AlertDialog(onDismissRequest={deletingTrip=-1},title={Text("Přesunout do koše?")},text={Text("Trasu bude možné obnovit.")},confirmButton={TextButton(onClick={trips.getJSONObject(deletingTrip).put("deleted",true);saveTrips(trips);deletingTrip=-1}){Text("Přesunout")}},dismissButton={TextButton(onClick={deletingTrip=-1}){Text("Zrušit")}})
+       }
+       6 -> {
+        if(askContactsUnlock) AlertDialog(onDismissRequest={askContactsUnlock=false},title={Text("Odemknout mazání kontaktů?")},text={Text("Opravdu chcete povolit mazání kontaktů?")},confirmButton={TextButton(onClick={contactsUnlocked=true;askContactsUnlock=false}){Text("Ano, odemknout",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={askContactsUnlock=false}){Text("Zrušit",color=Color.White)}})
+        if(contactEditing>=-1) AlertDialog(onDismissRequest={contactEditing=-2},title={Text(if(contactEditing==-1) "Nový kontakt" else "Upravit kontakt")},text={
+         Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+          OutlinedTextField(contactName,{contactName=it},label={Text("Jméno")},modifier=Modifier.fillMaxWidth())
+          OutlinedTextField(contactPhone,{contactPhone=it},label={Text("Telefon")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Phone),modifier=Modifier.fillMaxWidth())
+          OutlinedTextField(contactNote,{contactNote=it},label={Text("Poznámka")},modifier=Modifier.fillMaxWidth())
+         }
+        },confirmButton={TextButton(onClick={
+         val item=JSONObject().put("name",contactName.trim()).put("phone",contactPhone.trim()).put("note",contactNote.trim())
+         if(contactEditing==-1) contacts.put(item) else contacts.put(contactEditing,item)
+         saveContacts(contacts);contactEditing=-2
+        },enabled=contactName.isNotBlank()){Text("Uložit",color=Color.White)}},dismissButton={TextButton(onClick={contactEditing=-2}){Text("Zrušit",color=Color.White)}})
+        if(contactDeleting>=0) AlertDialog(onDismissRequest={contactDeleting=-1},title={Text("Smazat kontakt?")},text={Text("Opravdu chcete tento kontakt trvale smazat?")},confirmButton={TextButton(onClick={
+         val remaining=JSONArray((0 until contacts.length()).filter{it!=contactDeleting}.map{contacts.getJSONObject(it)})
+         saveContacts(remaining);contactDeleting=-1
+        }){Text("Ano, smazat",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={contactDeleting=-1}){Text("Zrušit",color=Color.White)}})
+        Button(onClick={contactName="";contactPhone="";contactNote="";contactEditing=-1},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("+ Nový kontakt")}
+        LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)){
+         items((0 until contacts.length()).sortedBy{contacts.getJSONObject(it).optString("name").lowercase()}){i->
+          val contact=contacts.getJSONObject(i)
+          ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface)){
+           Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
+            Text(contact.optString("name"),fontWeight=FontWeight.Bold,color=Color.White)
+            if(contact.optString("phone").isNotBlank()) Text(contact.optString("phone"),color=Color.White)
+            if(contact.optString("note").isNotBlank()) Text(contact.optString("note"),color=Color.White)
+            Row {
+             TextButton(onClick={contactName=contact.optString("name");contactPhone=contact.optString("phone");contactNote=contact.optString("note");contactEditing=i}){Text("Upravit",color=Color.White)}
+             if(contactsUnlocked) TextButton(onClick={contactDeleting=i}){Text("Smazat",color=Color(0xFFE53935))}
+            }
+           }
+          }
+         }
+        }
        }
        4 -> {
         if(askTripUnlock) AlertDialog(onDismissRequest={askTripUnlock=false},title={Text("Změnit pořadí adres?")},text={Text("Opravdu chcete změnit pořadí zastávek v této trase?")},confirmButton={TextButton(onClick={tripUnlocked=true;askTripUnlock=false}){Text("Ano, odemknout",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={askTripUnlock=false}){Text("Zrušit",color=Color.White)}})
