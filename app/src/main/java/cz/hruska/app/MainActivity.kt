@@ -26,6 +26,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Sms
 import androidx.compose.material.icons.filled.Add
@@ -101,6 +103,7 @@ class MainActivity : ComponentActivity() {
    var name by remember { mutableStateOf("") }
    var lineColor by remember { mutableStateOf(0xFF777777L) }
    var stopColor by remember { mutableStateOf(0xFF777777L) }
+   var turnDirection by remember { mutableStateOf("none") }
    var address by remember { mutableStateOf("") }
    var gps by remember { mutableStateOf("") }
    var note by remember { mutableStateOf("") }
@@ -201,7 +204,17 @@ class MainActivity : ComponentActivity() {
             OutlinedTextField(gps,{gps=it},label={Text("GPS souřadnice (nepovinné)")},modifier=Modifier.fillMaxWidth(),singleLine=true,isError=gps.isNotBlank() && !validGps(gps))
             if(gps.isNotBlank() && !validGps(gps)) Text("Formát: 49.8209, 18.2625",color=MaterialTheme.colorScheme.error)
             OutlinedTextField(note,{note=it},label={Text("Poznámka")},modifier=Modifier.fillMaxWidth())
-            Text("Barva rámečku adresy",color=Color.White)
+            Text("Směr odbočení",color=Color.White)
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+             FilterChip(selected=turnDirection=="left",onClick={turnDirection=if(turnDirection=="left") "none" else "left"},label={Text("Doleva")},leadingIcon={Icon(Icons.Default.ArrowBack,null,tint=Color(0xFF24C65A))})
+             FilterChip(selected=turnDirection=="right",onClick={turnDirection=if(turnDirection=="right") "none" else "right"},label={Text("Doprava")},leadingIcon={Icon(Icons.Default.ArrowForward,null,tint=Color(0xFF24C65A))})
+            }
+            Text("Směr odbočení",color=Color.White)
+         Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
+          FilterChip(selected=turnDirection=="left",onClick={turnDirection=if(turnDirection=="left") "none" else "left"},label={Text("Doleva")},leadingIcon={Icon(Icons.Default.ArrowBack,null,tint=Color(0xFF24C65A))})
+          FilterChip(selected=turnDirection=="right",onClick={turnDirection=if(turnDirection=="right") "none" else "right"},label={Text("Doprava")},leadingIcon={Icon(Icons.Default.ArrowForward,null,tint=Color(0xFF24C65A))})
+         }
+         Text("Barva rámečku adresy",color=Color.White)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { RouteColors.forEach { c -> Box(Modifier.size(30.dp).background(Color(c),CircleShape).then(if(stopColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{stopColor=c}) } }
            }
           },
@@ -211,7 +224,7 @@ class MainActivity : ComponentActivity() {
             r.put("stops",JSONArray(remaining));save(routes);editingStop=-1;confirmDeleteStop=false
            }){Text("Ano, smazat",color=MaterialTheme.colorScheme.error)}
            else TextButton(onClick={
-            stops.getJSONObject(editingStop).put("address",address.trim()).put("gps",gps.trim()).put("note",note).put("color",stopColor)
+            stops.getJSONObject(editingStop).put("address",address.trim()).put("gps",gps.trim()).put("note",note).put("color",stopColor).put("turn",turnDirection)
             save(routes);editingStop=-1
            },enabled=(address.isNotBlank() || gps.isNotBlank()) && (gps.isBlank() || validGps(gps))){Text("Uložit")}
           },
@@ -240,7 +253,7 @@ class MainActivity : ComponentActivity() {
          OutlinedTextField(note,{note=it},modifier=Modifier.fillMaxWidth(),label={Text("Poznámka")})
          Text("Barva rámečku adresy",color=Color.White)
          Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){RouteColors.forEach{c->Box(Modifier.size(32.dp).background(Color(c),CircleShape).then(if(stopColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{stopColor=c})}}
-         Button(onClick={stops.put(JSONObject().put("address",address.trim()).put("gps",gps.trim()).put("note",note).put("color",stopColor).put("done",false));save(routes);address="";gps="";note="";stopColor=0xFF777777},enabled=(address.isNotBlank() || gps.isNotBlank()) && (gps.isBlank() || validGps(gps)),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Přidat zastávku")}
+         Button(onClick={stops.put(JSONObject().put("address",address.trim()).put("gps",gps.trim()).put("note",note).put("color",stopColor).put("turn",turnDirection).put("done",false));save(routes);address="";gps="";note="";stopColor=0xFF777777;turnDirection="none"},enabled=(address.isNotBlank() || gps.isNotBlank()) && (gps.isBlank() || validGps(gps)),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Přidat zastávku")}
         } else OutlinedTextField(query,{query=it;notesMode=false},modifier=Modifier.fillMaxWidth(),label={Text("Hledat adresu")},leadingIcon={Icon(Icons.Default.Search,null)},singleLine=true)
         val found=(0 until stops.length()).filter { i ->
          val s=stops.getJSONObject(i)
@@ -273,7 +286,7 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment=Alignment.CenterVertically) {
              Text((i+1).toString()+". "+(s.optString("address").ifBlank { "GPS: "+s.optString("gps") }),modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold)
-             IconButton(onClick={editingStop=i;address=s.optString("address");gps=s.optString("gps");note=s.optString("note");stopColor=s.optLong("color",0xFF777777);confirmDeleteStop=false},modifier=Modifier.size(40.dp)) {
+             IconButton(onClick={editingStop=i;address=s.optString("address");gps=s.optString("gps");note=s.optString("note");stopColor=s.optLong("color",0xFF777777);turnDirection=s.optString("turn","none");confirmDeleteStop=false},modifier=Modifier.size(40.dp)) {
               Icon(Icons.Default.Edit,contentDescription="Upravit adresu",modifier=Modifier.size(19.dp),tint=Color.White)
              }
             }
@@ -413,6 +426,9 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.padding(14.dp)){
             Text((i+1).toString()+". "+stop.optString("address").ifBlank{"GPS: "+stop.optString("gps")},fontWeight=FontWeight.Bold)
             if(stop.optString("note").isNotBlank()) Text(stop.optString("note"))
+            if(stop.optString("turn")=="left" || stop.optString("turn")=="right") {
+             Icon(if(stop.optString("turn")=="left") Icons.Default.ArrowBack else Icons.Default.ArrowForward,if(stop.optString("turn")=="left") "Odbočit doleva" else "Odbočit doprava",modifier=Modifier.size(48.dp),tint=Color(0xFF24C65A))
+            }
             if(tripUnlocked) {
              var position by remember(i,tripData) { mutableStateOf((i+1).toString()) }
              Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){
