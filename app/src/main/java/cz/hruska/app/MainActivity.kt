@@ -21,6 +21,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Sms
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.*
@@ -114,7 +116,7 @@ class MainActivity : ComponentActivity() {
         IconButton(onClick={if(unlocked) unlocked=false else askUnlock=true}) { Icon(if(unlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(unlocked) "Zamknout pořadí" else "Odemknout pořadí",tint=if(unlocked) Color(0xFF24C65A) else Color(0xFFE53935)) }
        }
        if(screen==6) IconButton(onClick={if(contactsUnlocked) contactsUnlocked=false else askContactsUnlock=true}) {
-        Icon(if(contactsUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(contactsUnlocked) "Zamknout mazání" else "Odemknout mazání",tint=if(contactsUnlocked) Color(0xFF24C65A) else Color(0xFFE53935))
+        Icon(if(contactsUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(contactsUnlocked) "Zamknout úpravy a mazání" else "Odemknout úpravy a mazání",tint=if(contactsUnlocked) Color(0xFF24C65A) else Color(0xFFE53935))
        }
        if(screen==4) IconButton(onClick={if(tripUnlocked) tripUnlocked=false else askTripUnlock=true}) {
         Icon(if(tripUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(tripUnlocked) "Zamknout pořadí" else "Odemknout pořadí",tint=if(tripUnlocked) Color(0xFF24C65A) else Color(0xFFE53935))
@@ -296,7 +298,7 @@ class MainActivity : ComponentActivity() {
         if(deletingTrip>=0 && !trash) AlertDialog(onDismissRequest={deletingTrip=-1},title={Text("Přesunout do koše?")},text={Text("Trasu bude možné obnovit.")},confirmButton={TextButton(onClick={trips.getJSONObject(deletingTrip).put("deleted",true);saveTrips(trips);deletingTrip=-1}){Text("Přesunout")}},dismissButton={TextButton(onClick={deletingTrip=-1}){Text("Zrušit")}})
        }
        6 -> {
-        if(askContactsUnlock) AlertDialog(onDismissRequest={askContactsUnlock=false},title={Text("Odemknout mazání kontaktů?")},text={Text("Opravdu chcete povolit mazání kontaktů?")},confirmButton={TextButton(onClick={contactsUnlocked=true;askContactsUnlock=false}){Text("Ano, odemknout",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={askContactsUnlock=false}){Text("Zrušit",color=Color.White)}})
+        if(askContactsUnlock) AlertDialog(onDismissRequest={askContactsUnlock=false},title={Text("Odemknout kontakty?")},text={Text("Opravdu chcete povolit úpravy a mazání kontaktů?")},confirmButton={TextButton(onClick={contactsUnlocked=true;askContactsUnlock=false}){Text("Ano, odemknout",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={askContactsUnlock=false}){Text("Zrušit",color=Color.White)}})
         if(contactEditing>=-1) AlertDialog(onDismissRequest={contactEditing=-2},title={Text(if(contactEditing==-1) "Nový kontakt" else "Upravit kontakt")},text={
          Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
           OutlinedTextField(contactName,{contactName=it},label={Text("Jméno")},modifier=Modifier.fillMaxWidth())
@@ -339,7 +341,11 @@ class MainActivity : ComponentActivity() {
             if(contact.optString("phone").isNotBlank()) Text(contact.optString("phone"),color=Color.White)
             if(contact.optString("note").isNotBlank()) Text(contact.optString("note"),color=Color.White)
             Row {
-             TextButton(onClick={contactName=contact.optString("name");contactPhone=contact.optString("phone");contactNote=contact.optString("note");contactGroup=contact.optString("group","Ostatní");contactEditing=i}){Text("Upravit",color=Color.White)}
+             if(contact.optString("phone").isNotBlank()) {
+              IconButton(onClick={context.startActivity(Intent(Intent.ACTION_DIAL,Uri.parse("tel:"+Uri.encode(contact.optString("phone")))))}){Icon(Icons.Default.Phone,"Zavolat",tint=Color.White)}
+              IconButton(onClick={context.startActivity(Intent(Intent.ACTION_SENDTO,Uri.parse("smsto:"+Uri.encode(contact.optString("phone")))))}){Icon(Icons.Default.Sms,"Napsat SMS",tint=Color.White)}
+             }
+             if(contactsUnlocked) TextButton(onClick={contactName=contact.optString("name");contactPhone=contact.optString("phone");contactNote=contact.optString("note");contactGroup=contact.optString("group","Ostatní");contactEditing=i}){Text("Upravit",color=Color.White)}
              if(contactsUnlocked) TextButton(onClick={contactDeleting=i}){Text("Smazat",color=Color(0xFFE53935))}
             }
            }
