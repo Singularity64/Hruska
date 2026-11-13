@@ -17,6 +17,10 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +40,13 @@ private fun validGps(value: String): Boolean {
  return lat in -90.0..90.0 && lon in -180.0..180.0
 }
 
+private fun reordered(stops: JSONArray, from: Int, to: Int): JSONArray {
+ val list=(0 until stops.length()).map{stops.getJSONObject(it)}.toMutableList()
+ if(from !in list.indices || to !in list.indices) return stops
+ list.add(to,list.removeAt(from))
+ return JSONArray(list)
+}
+
 private val Indigo = Color(0xFF1B1EA1)
 private val Dark = Color(0xFF101116)
 private val Surface = Color(0xFF1C1E28)
@@ -52,6 +63,8 @@ class MainActivity : ComponentActivity() {
    var deletingTrip by remember { mutableIntStateOf(-1) }
    var selected by remember { mutableIntStateOf(-1) }
    var edit by remember { mutableStateOf(false) }
+   var unlocked by remember { mutableStateOf(false) }
+   var askUnlock by remember { mutableStateOf(false) }
    var name by remember { mutableStateOf("") }
    var address by remember { mutableStateOf("") }
    var gps by remember { mutableStateOf("") }
@@ -66,7 +79,7 @@ class MainActivity : ComponentActivity() {
    val trips = remember(tripData) { JSONArray(tripData) }
    fun saveTrips(a: JSONArray) { tripData=a.toString();prefs.edit().putString("trips",tripData).apply() }
    fun save(a: JSONArray) { data = a.toString(); prefs.edit().putString("routes", data).apply() }
-   fun back() { if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query=""} else if(screen==4) screen=3 else screen=0 }
+   fun back() { if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query="";unlocked=false} else if(screen==4) screen=3 else screen=0 }
    BackHandler(screen!=0 || edit) { back() }
    val colors=darkColorScheme(primary=Indigo, onPrimary=Color.White, background=Dark, onBackground=Color.White, surface=Surface, onSurface=Color.White, surfaceVariant=Color(0xFF292B39))
    MaterialTheme(colorScheme=colors) {
@@ -75,7 +88,10 @@ class MainActivity : ComponentActivity() {
       Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
        if(screen!=0) IconButton(onClick={back()}) { Icon(Icons.Default.ArrowBack,"Zpět") }
        Text(if(screen==0) "HRUŠKA" else if(screen==1) "Vyber linku" else if(screen==2) routes.getJSONObject(selected).optString("name") else if(screen==3) "Moje trasy" else if(screen==4) trips.getJSONObject(selectedTrip).optString("name") else "Koš",modifier=Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
-       if(screen==2) IconButton(onClick={edit=!edit;name=routes.getJSONObject(selected).optString("name")}) { Icon(Icons.Default.Edit,"Upravit linku") }
+       if(screen==2) {
+        IconButton(onClick={edit=!edit;name=routes.getJSONObject(selected).optString("name")}) { Icon(Icons.Default.Edit,"Upravit linku") }
+        IconButton(onClick={if(unlocked) unlocked=false else askUnlock=true}) { Icon(if(unlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(unlocked) "Zamknout pořadí" else "Odemknout pořadí") }
+       }
       }
       when(screen) {
        0 -> {
@@ -92,7 +108,7 @@ class MainActivity : ComponentActivity() {
         LazyColumn(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(10.dp)) {
          items((0 until routes.length()).filter{routes.getJSONObject(it).optString("name").contains(query,true)}) { i ->
           val r=routes.getJSONObject(i)
-          ElevatedCard(onClick={selected=i;screen=2;query="";edit=false},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=CardDefaults.elevatedCardColors(containerColor=Surface)) {
+          ElevatedCard(onClick={selected=i;screen=2;query="";edit=false;unlocked=false},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=CardDefaults.elevatedCardColors(containerColor=Surface)) {
            Column(Modifier.padding(18.dp)) {
             Text(r.optString("name"),fontWeight=FontWeight.Bold)
             Text(r.optJSONArray("stops")?.length().toString()+" zastávek",color=Color.LightGray)
@@ -109,6 +125,7 @@ class MainActivity : ComponentActivity() {
         } else Button(onClick={name="";addLine=true},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("+ Přidat linku")}
        }
        2 -> {
+        if(askUnlock) AlertDialog(onDismissRequest={askUnlock=false},title={Text("Změnit pořadí adres?")},text={Text("Opravdu chcete změnit pořadí zastávek v této lince?")},confirmButton={TextButton(onClick={unlocked=true;askUnlock=false;edit=false;query=""}){Text("Ano, odemknout")}},dismissButton={TextButton(onClick={askUnlock=false}){Text("Zrušit")}})
         val r=routes.getJSONObject(selected)
         val stops=r.getJSONArray("stops")
         if(editingStop >= 0 && editingStop < stops.length()) {
@@ -190,6 +207,18 @@ class MainActivity : ComponentActivity() {
             }
             if(s.optString("address").isNotBlank() && s.optString("gps").isNotBlank()) Text("GPS: "+s.optString("gps"),color=Color.LightGray)
             if(s.optString("note").isNotBlank()) Text(s.optString("note"),color=Color.LightGray)
+            if(unlocked && !edit && query.isBlank()) {
+             var position by remember(i,data) { mutableStateOf((i+1).toString()) }
+             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
+              OutlinedButton(onClick={r.put("stops",reordered(stops,i,i-1));save(routes)},enabled=i>0,contentPadding=PaddingValues(horizontal=10.dp)){Text("↑")}
+              OutlinedButton(onClick={r.put("stops",reordered(stops,i,i+1));save(routes)},enabled=i<stops.length()-1,contentPadding=PaddingValues(horizontal=10.dp)){Text("↓")}
+              OutlinedTextField(value=position,onValueChange={v->if(v.length<=5 && v.all{it.isDigit()}) position=v},modifier=Modifier.width(78.dp),singleLine=true,label={Text("Pozice")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+              TextButton(onClick={
+               val target=position.toIntOrNull()
+               if(target!=null && target in 1..stops.length()) {r.put("stops",reordered(stops,i,target-1));save(routes)}
+              },enabled=position.toIntOrNull() in 1..stops.length()){Text("OK")}
+             }
+            }
             if(edit) {
              Row {
               TextButton(onClick={if(i>0){val a=(0 until stops.length()).map{stops.getJSONObject(it)}.toMutableList();val v=a.removeAt(i);a.add(i-1,v);r.put("stops",JSONArray(a));save(routes)}},enabled=i>0){Text("↑")}
