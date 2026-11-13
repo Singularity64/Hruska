@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Sms
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Delete
@@ -71,6 +72,9 @@ class MainActivity : ComponentActivity() {
    var contactPhone by remember { mutableStateOf("") }
    var contactNote by remember { mutableStateOf("") }
    var contactGroup by remember { mutableStateOf("Ostatní") }
+   var contactFilter by remember { mutableStateOf("Vše") }
+   var contactSearch by remember { mutableStateOf("") }
+   var filterExpanded by remember { mutableStateOf(false) }
    var groupData by remember { mutableStateOf(prefs.getString("contact_groups", "[]") ?: "[]") }
    var newGroup by remember { mutableStateOf("") }
    var addingGroup by remember { mutableStateOf(false) }
@@ -142,7 +146,7 @@ class MainActivity : ComponentActivity() {
          Spacer(Modifier.width(12.dp))
          Text("Moje trasy")
         }
-        Button(onClick={screen=6;contactsUnlocked=false},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){
+        Button(onClick={screen=6;contactsUnlocked=false;contactFilter="Vše";contactSearch=""},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){
          Icon(Icons.Default.Person,"Kontakty",tint=Color.White)
          Spacer(Modifier.width(12.dp))
          Text("Kontakty")
@@ -337,17 +341,18 @@ class MainActivity : ComponentActivity() {
          val remaining=JSONArray((0 until contacts.length()).filter{it!=contactDeleting}.map{contacts.getJSONObject(it)})
          saveContacts(remaining);contactDeleting=-1
         }){Text("Ano, smazat",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={contactDeleting=-1}){Text("Zrušit",color=Color.White)}})
-        if(addingGroup) AlertDialog(onDismissRequest={addingGroup=false},title={Text("Nová skupina")},text={OutlinedTextField(newGroup,{newGroup=it},label={Text("Název skupiny")})},confirmButton={TextButton(onClick={
-         val candidate=newGroup.trim()
-         if(candidate.isNotBlank() && groups.none{it.equals(candidate,true)}) {
-          customGroups.put(candidate);groupData=customGroups.toString();prefs.edit().putString("contact_groups",groupData).apply()
+        Box {
+         OutlinedButton(onClick={filterExpanded=true},modifier=Modifier.fillMaxWidth()){Text("Skupina: "+contactFilter,color=Color.White)}
+         DropdownMenu(expanded=filterExpanded,onDismissRequest={filterExpanded=false}){
+          (listOf("Vše")+groups).forEach { g ->
+           DropdownMenuItem(text={Text(g)},onClick={contactFilter=g;filterExpanded=false})
+          }
          }
-         newGroup="";addingGroup=false
-        },enabled=newGroup.isNotBlank() && groups.none{it.equals(newGroup.trim(),true)}){Text("Přidat",color=Color.White)}},dismissButton={TextButton(onClick={addingGroup=false}){Text("Zrušit",color=Color.White)}})
-        OutlinedButton(onClick={newGroup="";addingGroup=true},modifier=Modifier.fillMaxWidth()){Text("+ Přidat skupinu",color=Color.White)}
-        Button(onClick={contactName="";contactPhone="";contactNote="";contactGroup="Ostatní";contactEditing=-1},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("+ Nový kontakt")}
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)){
-         items((0 until contacts.length()).sortedBy{contacts.getJSONObject(it).optString("name").lowercase()}){i->
+        }
+        Box(modifier=Modifier.fillMaxWidth().weight(1f)) {
+         LazyColumn(modifier=Modifier.fillMaxSize().padding(bottom=94.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+
+         items((0 until contacts.length()).filter{ i -> val c=contacts.getJSONObject(i); (contactFilter=="Vše" || c.optString("group","Ostatní")==contactFilter) && c.optString("name").contains(contactSearch,true) }.sortedBy{contacts.getJSONObject(it).optString("name").lowercase()}){i->
           val contact=contacts.getJSONObject(i)
           ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface)){
            Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
@@ -364,6 +369,13 @@ class MainActivity : ComponentActivity() {
              if(contactsUnlocked) TextButton(onClick={contactDeleting=i}){Text("Smazat",color=Color(0xFFE53935))}
             }
            }
+          }
+         }
+        }
+         Row(modifier=Modifier.align(Alignment.BottomCenter).fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+          OutlinedTextField(value=contactSearch,onValueChange={contactSearch=it},modifier=Modifier.weight(1f),singleLine=true,label={Text("Hledat jméno")},leadingIcon={Icon(Icons.Default.Search,null)})
+          FloatingActionButton(onClick={contactName="";contactPhone="";contactNote="";contactGroup="Ostatní";contactEditing=-1},modifier=Modifier.size(72.dp),containerColor=Color(0xFF24C65A),contentColor=Color.White,shape=RoundedCornerShape(50)){
+           Icon(Icons.Default.Add,"Nový kontakt",modifier=Modifier.size(38.dp),tint=Color.White)
           }
          }
         }
