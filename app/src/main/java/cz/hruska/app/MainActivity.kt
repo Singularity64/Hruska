@@ -19,6 +19,8 @@ import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.*
@@ -79,7 +81,7 @@ class MainActivity : ComponentActivity() {
    val trips = remember(tripData) { JSONArray(tripData) }
    fun saveTrips(a: JSONArray) { tripData=a.toString();prefs.edit().putString("trips",tripData).apply() }
    fun save(a: JSONArray) { data = a.toString(); prefs.edit().putString("routes", data).apply() }
-   fun back() { if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query="";unlocked=false} else if(screen==4) screen=3 else screen=0 }
+   fun back() { unlocked=false;askUnlock=false; if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query="";unlocked=false} else if(screen==4) screen=3 else screen=0 }
    BackHandler(screen!=0 || edit) { back() }
    val colors=darkColorScheme(primary=Indigo, onPrimary=Color.White, background=Dark, onBackground=Color.White, surface=Surface, onSurface=Color.White, surfaceVariant=Color(0xFF292B39))
    MaterialTheme(colorScheme=colors) {
@@ -90,14 +92,14 @@ class MainActivity : ComponentActivity() {
        Text(if(screen==0) "HRUŠKA" else if(screen==1) "Vyber linku" else if(screen==2) routes.getJSONObject(selected).optString("name") else if(screen==3) "Moje trasy" else if(screen==4) trips.getJSONObject(selectedTrip).optString("name") else "Koš",modifier=Modifier.weight(1f),style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
        if(screen==2) {
         IconButton(onClick={edit=!edit;name=routes.getJSONObject(selected).optString("name")}) { Icon(Icons.Default.Edit,"Upravit linku") }
-        IconButton(onClick={if(unlocked) unlocked=false else askUnlock=true}) { Icon(if(unlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(unlocked) "Zamknout pořadí" else "Odemknout pořadí") }
+        IconButton(onClick={if(unlocked) unlocked=false else askUnlock=true}) { Icon(if(unlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(unlocked) "Zamknout pořadí" else "Odemknout pořadí",tint=if(unlocked) Color(0xFF24C65A) else Color(0xFFE53935)) }
        }
       }
       when(screen) {
        0 -> {
         Spacer(Modifier.weight(1f))
-        Icon(Icons.Default.Route,null,Modifier.align(Alignment.CenterHorizontally).size(64.dp),tint=Color(0xFF9295FF))
-        Text("Plánování rozvozových tras",modifier=Modifier.align(Alignment.CenterHorizontally),color=Color.LightGray)
+        Icon(Icons.Default.Route,null,Modifier.align(Alignment.CenterHorizontally).size(64.dp),tint=Color.White)
+        Text("Plánování rozvozových tras",modifier=Modifier.align(Alignment.CenterHorizontally),color=Color.White)
         Spacer(Modifier.weight(1f))
         Button(onClick={screen=1},modifier=Modifier.fillMaxWidth().height(58.dp),shape=RoundedCornerShape(14.dp),colors=ButtonDefaults.buttonColors(containerColor=Indigo)) { Text("Vyber linku") }
         Button(onClick={screen=3},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Moje trasy")}
@@ -111,7 +113,7 @@ class MainActivity : ComponentActivity() {
           ElevatedCard(onClick={selected=i;screen=2;query="";edit=false;unlocked=false},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(14.dp),colors=CardDefaults.elevatedCardColors(containerColor=Surface)) {
            Column(Modifier.padding(18.dp)) {
             Text(r.optString("name"),fontWeight=FontWeight.Bold)
-            Text(r.optJSONArray("stops")?.length().toString()+" zastávek",color=Color.LightGray)
+            Text(r.optJSONArray("stops")?.length().toString()+" zastávek",color=Color.White)
            }
           }
          }
@@ -202,16 +204,16 @@ class MainActivity : ComponentActivity() {
             Row(verticalAlignment=Alignment.CenterVertically) {
              Text((i+1).toString()+". "+(s.optString("address").ifBlank { "GPS: "+s.optString("gps") }),modifier=Modifier.weight(1f),fontWeight=FontWeight.Bold)
              IconButton(onClick={editingStop=i;address=s.optString("address");gps=s.optString("gps");note=s.optString("note");confirmDeleteStop=false},modifier=Modifier.size(40.dp)) {
-              Icon(Icons.Default.Edit,contentDescription="Upravit adresu",modifier=Modifier.size(19.dp),tint=Color(0xFF9295FF))
+              Icon(Icons.Default.Edit,contentDescription="Upravit adresu",modifier=Modifier.size(19.dp),tint=Color.White)
              }
             }
-            if(s.optString("address").isNotBlank() && s.optString("gps").isNotBlank()) Text("GPS: "+s.optString("gps"),color=Color.LightGray)
-            if(s.optString("note").isNotBlank()) Text(s.optString("note"),color=Color.LightGray)
+            if(s.optString("address").isNotBlank() && s.optString("gps").isNotBlank()) Text("GPS: "+s.optString("gps"),color=Color.White)
+            if(s.optString("note").isNotBlank()) Text(s.optString("note"),color=Color.White)
             if(unlocked && !edit && query.isBlank()) {
              var position by remember(i,data) { mutableStateOf((i+1).toString()) }
              Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)) {
-              OutlinedButton(onClick={r.put("stops",reordered(stops,i,i-1));save(routes)},enabled=i>0,contentPadding=PaddingValues(horizontal=10.dp)){Text("↑")}
-              OutlinedButton(onClick={r.put("stops",reordered(stops,i,i+1));save(routes)},enabled=i<stops.length()-1,contentPadding=PaddingValues(horizontal=10.dp)){Text("↓")}
+              OutlinedButton(onClick={r.put("stops",reordered(stops,i,i-1));save(routes)},enabled=i>0,contentPadding=PaddingValues(horizontal=10.dp)){Icon(Icons.Default.ArrowUpward,"Nahoru",tint=Color.White)}
+              OutlinedButton(onClick={r.put("stops",reordered(stops,i,i+1));save(routes)},enabled=i<stops.length()-1,contentPadding=PaddingValues(horizontal=10.dp)){Icon(Icons.Default.ArrowDownward,"Dolů",tint=Color.White)}
               OutlinedTextField(value=position,onValueChange={v->if(v.length<=5 && v.all{it.isDigit()}) position=v},modifier=Modifier.width(78.dp),singleLine=true,label={Text("Pozice")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
               TextButton(onClick={
                val target=position.toIntOrNull()
@@ -253,7 +255,7 @@ class MainActivity : ComponentActivity() {
           ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface)){
            Column(Modifier.padding(14.dp)){
             Text(trip.optString("name"),fontWeight=FontWeight.Bold)
-            Text(trip.getJSONArray("stops").length().toString()+" zastávek",color=Color.LightGray)
+            Text(trip.getJSONArray("stops").length().toString()+" zastávek",color=Color.White)
             Row {
              if(trash) TextButton(onClick={trip.put("deleted",false);saveTrips(trips)}){Text("Obnovit")}
              else {
