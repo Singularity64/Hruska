@@ -67,6 +67,8 @@ class MainActivity : ComponentActivity() {
    var edit by remember { mutableStateOf(false) }
    var unlocked by remember { mutableStateOf(false) }
    var askUnlock by remember { mutableStateOf(false) }
+   var tripUnlocked by remember { mutableStateOf(false) }
+   var askTripUnlock by remember { mutableStateOf(false) }
    var name by remember { mutableStateOf("") }
    var address by remember { mutableStateOf("") }
    var gps by remember { mutableStateOf("") }
@@ -81,7 +83,7 @@ class MainActivity : ComponentActivity() {
    val trips = remember(tripData) { JSONArray(tripData) }
    fun saveTrips(a: JSONArray) { tripData=a.toString();prefs.edit().putString("trips",tripData).apply() }
    fun save(a: JSONArray) { data = a.toString(); prefs.edit().putString("routes", data).apply() }
-   fun back() { unlocked=false;askUnlock=false; if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query="";unlocked=false} else if(screen==4) screen=3 else screen=0 }
+   fun back() { unlocked=false;askUnlock=false;tripUnlocked=false;askTripUnlock=false; if(edit) edit=false else if(screen==2) {screen=1;selected=-1;query="";unlocked=false} else if(screen==4) screen=3 else screen=0 }
    BackHandler(screen!=0 || edit) { back() }
    val colors=darkColorScheme(primary=Indigo, onPrimary=Color.White, background=Dark, onBackground=Color.White, surface=Surface, onSurface=Color.White, surfaceVariant=Color(0xFF292B39))
    MaterialTheme(colorScheme=colors) {
@@ -93,6 +95,9 @@ class MainActivity : ComponentActivity() {
        if(screen==2) {
         IconButton(onClick={edit=!edit;name=routes.getJSONObject(selected).optString("name")}) { Icon(Icons.Default.Edit,"Upravit linku") }
         IconButton(onClick={if(unlocked) unlocked=false else askUnlock=true}) { Icon(if(unlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(unlocked) "Zamknout pořadí" else "Odemknout pořadí",tint=if(unlocked) Color(0xFF24C65A) else Color(0xFFE53935)) }
+       }
+       if(screen==4) IconButton(onClick={if(tripUnlocked) tripUnlocked=false else askTripUnlock=true}) {
+        Icon(if(tripUnlocked) Icons.Default.LockOpen else Icons.Default.Lock,if(tripUnlocked) "Zamknout pořadí" else "Odemknout pořadí",tint=if(tripUnlocked) Color(0xFF24C65A) else Color(0xFFE53935))
        }
       }
       when(screen) {
@@ -127,7 +132,7 @@ class MainActivity : ComponentActivity() {
         } else Button(onClick={name="";addLine=true},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("+ Přidat linku")}
        }
        2 -> {
-        if(askUnlock) AlertDialog(onDismissRequest={askUnlock=false},title={Text("Změnit pořadí adres?")},text={Text("Opravdu chcete změnit pořadí zastávek v této lince?")},confirmButton={TextButton(onClick={unlocked=true;askUnlock=false;edit=false;query=""}){Text("Ano, odemknout")}},dismissButton={TextButton(onClick={askUnlock=false}){Text("Zrušit")}})
+        if(askUnlock) AlertDialog(onDismissRequest={askUnlock=false},title={Text("Změnit pořadí adres?")},text={Text("Opravdu chcete změnit pořadí zastávek v této lince?")},confirmButton={TextButton(onClick={unlocked=true;askUnlock=false;edit=false;query=""}){Text("Ano, odemknout",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={askUnlock=false}){Text("Zrušit",color=Color.White)}})
         val r=routes.getJSONObject(selected)
         val stops=r.getJSONArray("stops")
         if(editingStop >= 0 && editingStop < stops.length()) {
@@ -196,7 +201,7 @@ class MainActivity : ComponentActivity() {
           }
          }
         }
-        LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)) {
+        if(!edit) LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)) {
          items(found) { i ->
           val s=stops.getJSONObject(i)
           ElevatedCard(modifier=Modifier.fillMaxWidth(),colors=CardDefaults.elevatedCardColors(containerColor=Surface),shape=RoundedCornerShape(14.dp)) {
@@ -259,8 +264,8 @@ class MainActivity : ComponentActivity() {
             Row {
              if(trash) TextButton(onClick={trip.put("deleted",false);saveTrips(trips)}){Text("Obnovit")}
              else {
-              TextButton(onClick={selectedTrip=i;screen=4}){Text("Otevřít")}
-              TextButton(onClick={deletingTrip=i}){Text("Smazat")}
+              TextButton(onClick={selectedTrip=i;screen=4;tripUnlocked=false}){Text("Otevřít",color=Color.White)}
+              TextButton(onClick={deletingTrip=i}){Text("Smazat",color=Color(0xFFE53935))}
              }
             }
            }
@@ -270,6 +275,7 @@ class MainActivity : ComponentActivity() {
         if(deletingTrip>=0 && !trash) AlertDialog(onDismissRequest={deletingTrip=-1},title={Text("Přesunout do koše?")},text={Text("Trasu bude možné obnovit.")},confirmButton={TextButton(onClick={trips.getJSONObject(deletingTrip).put("deleted",true);saveTrips(trips);deletingTrip=-1}){Text("Přesunout")}},dismissButton={TextButton(onClick={deletingTrip=-1}){Text("Zrušit")}})
        }
        4 -> {
+        if(askTripUnlock) AlertDialog(onDismissRequest={askTripUnlock=false},title={Text("Změnit pořadí adres?")},text={Text("Opravdu chcete změnit pořadí zastávek v této trase?")},confirmButton={TextButton(onClick={tripUnlocked=true;askTripUnlock=false}){Text("Ano, odemknout",color=Color(0xFFE53935))}},dismissButton={TextButton(onClick={askTripUnlock=false}){Text("Zrušit",color=Color.White)}})
         val tripStops=trips.getJSONObject(selectedTrip).getJSONArray("stops")
         LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)){
          items((0 until tripStops.length()).toList()){i->
@@ -278,6 +284,15 @@ class MainActivity : ComponentActivity() {
            Column(Modifier.padding(14.dp)){
             Text((i+1).toString()+". "+stop.optString("address").ifBlank{"GPS: "+stop.optString("gps")},fontWeight=FontWeight.Bold)
             if(stop.optString("note").isNotBlank()) Text(stop.optString("note"))
+            if(tripUnlocked) {
+             var position by remember(i,tripData) { mutableStateOf((i+1).toString()) }
+             Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){
+              OutlinedButton(onClick={trips.getJSONObject(selectedTrip).put("stops",reordered(tripStops,i,i-1));saveTrips(trips)},enabled=i>0,contentPadding=PaddingValues(horizontal=10.dp)){Icon(Icons.Default.ArrowUpward,"Nahoru",tint=Color.White)}
+              OutlinedButton(onClick={trips.getJSONObject(selectedTrip).put("stops",reordered(tripStops,i,i+1));saveTrips(trips)},enabled=i<tripStops.length()-1,contentPadding=PaddingValues(horizontal=10.dp)){Icon(Icons.Default.ArrowDownward,"Dolů",tint=Color.White)}
+              OutlinedTextField(value=position,onValueChange={v->if(v.length<=5 && v.all{it.isDigit()}) position=v},modifier=Modifier.width(78.dp),singleLine=true,label={Text("Pozice")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number))
+              TextButton(onClick={val target=position.toIntOrNull();if(target!=null && target in 1..tripStops.length()){trips.getJSONObject(selectedTrip).put("stops",reordered(tripStops,i,target-1));saveTrips(trips)}},enabled=position.toIntOrNull() in 1..tripStops.length()){Text("OK",color=Color.White)}
+             }
+            }
             Row(verticalAlignment=Alignment.CenterVertically){
              Checkbox(stop.optBoolean("done"),{stop.put("done",it);saveTrips(trips)})
              Button(onClick={context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.google.com/maps/dir/?api=1&destination="+Uri.encode(stop.optString("gps").ifBlank{stop.optString("address")}))))},colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Navigovat")}
