@@ -65,7 +65,7 @@ private fun reordered(stops: JSONArray, from: Int, to: Int): JSONArray {
 private val Indigo = Color(0xFF1B1EA1)
 private val Dark = Color(0xFF101116)
 private val Surface = Color(0xFF1C1E28)
-private val RouteColors = listOf(0xFF777777,0xFFE53935,0xFF24C65A,0xFF2196F3,0xFFFFC107,0xFFAB47BC,0xFFFF7043,0xFF26C6DA)
+private val RouteColors = listOf(0xFF777777,0xFFE53935,0xFF24C65A,0xFF2196F3,0xFFFFC107,0xFFAB47BC,0xFFFF7043,0xFF26C6DA,0xFFEC407A,0xFF8BC34A,0xFF5C6BC0,0xFFFFEB3B,0xFF8D6E63,0xFF00BFA5,0xFFD4E157,0xFFFF8A80)
 private fun routeColor(item: JSONObject): Color = Color(item.optLong("color",0xFF777777))
 
 class MainActivity : ComponentActivity() {
@@ -180,9 +180,7 @@ class MainActivity : ComponentActivity() {
         if(addLine) {
          OutlinedTextField(name,{name=it},modifier=Modifier.fillMaxWidth(),label={Text("Název nové linky")})
          Text("Barva linky",color=Color.White)
-         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-          RouteColors.forEach{ c -> Box(Modifier.size(32.dp).background(Color(c),CircleShape).clickable{lineColor=c}.then(if(lineColor==c) Modifier.padding(4.dp) else Modifier)) }
-         }
+         Column(verticalArrangement=Arrangement.spacedBy(8.dp)) { RouteColors.chunked(8).forEach { colors -> Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { colors.forEach { c -> Box(Modifier.size(30.dp).background(Color(c),CircleShape).then(if(lineColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{lineColor=c}) } } } }
          Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
           OutlinedButton(onClick={addLine=false}){Text("Zrušit")}
           Button(onClick={routes.put(JSONObject().put("name",name.trim()).put("color",lineColor).put("stops",JSONArray()));save(routes);name="";addLine=false},enabled=name.isNotBlank(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Uložit")}
@@ -210,7 +208,7 @@ class MainActivity : ComponentActivity() {
              FilterChip(selected=turnDirection=="right",onClick={turnDirection=if(turnDirection=="right") "none" else "right"},label={Text("Doprava")},leadingIcon={Icon(Icons.Default.ArrowForward,null,tint=Color(0xFF24C65A))})
             }
          Text("Barva rámečku adresy",color=Color.White)
-            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { RouteColors.forEach { c -> Box(Modifier.size(30.dp).background(Color(c),CircleShape).then(if(stopColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{stopColor=c}) } }
+            Column(verticalArrangement=Arrangement.spacedBy(8.dp)) { RouteColors.chunked(8).forEach { colors -> Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { colors.forEach { c -> Box(Modifier.size(30.dp).background(Color(c),CircleShape).then(if(stopColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{stopColor=c}) } } } }
            }
           },
           confirmButton={
@@ -235,11 +233,7 @@ class MainActivity : ComponentActivity() {
         if(edit) {
          OutlinedTextField(name,{name=it},modifier=Modifier.fillMaxWidth(),label={Text("Název linky")})
          Text("Barva linky",color=Color.White)
-         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-          RouteColors.forEach{ c ->
-           Box(Modifier.size(32.dp).background(Color(c),CircleShape).then(if(lineColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{lineColor=c})
-          }
-         }
+         Column(verticalArrangement=Arrangement.spacedBy(8.dp)) { RouteColors.chunked(8).forEach { colors -> Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { colors.forEach { c -> Box(Modifier.size(30.dp).background(Color(c),CircleShape).then(if(lineColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{lineColor=c}) } } } }
          Button(onClick={r.put("name",name.trim());r.put("color",lineColor);save(routes);edit=false},enabled=name.isNotBlank(),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Uložit změny")}
          HorizontalDivider()
          OutlinedTextField(address,{address=it},modifier=Modifier.fillMaxWidth(),label={Text("Adresa zastávky (nepovinná při GPS)")})
@@ -247,7 +241,7 @@ class MainActivity : ComponentActivity() {
          if(gps.isNotBlank() && !validGps(gps)) Text("Zadej souřadnice jako šířka, délka (např. 49.8209, 18.2625)",color=MaterialTheme.colorScheme.error,style=MaterialTheme.typography.bodySmall)
          OutlinedTextField(note,{note=it},modifier=Modifier.fillMaxWidth(),label={Text("Poznámka")})
          Text("Barva rámečku adresy",color=Color.White)
-         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){RouteColors.forEach{c->Box(Modifier.size(32.dp).background(Color(c),CircleShape).then(if(stopColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{stopColor=c})}}
+         Column(verticalArrangement=Arrangement.spacedBy(8.dp)) { RouteColors.chunked(8).forEach { colors -> Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { colors.forEach { c -> Box(Modifier.size(30.dp).background(Color(c),CircleShape).then(if(stopColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{stopColor=c}) } } } }
          Button(onClick={stops.put(JSONObject().put("address",address.trim()).put("gps",gps.trim()).put("note",note).put("color",stopColor).put("turn",turnDirection).put("done",false));save(routes);address="";gps="";note="";stopColor=0xFF777777;turnDirection="none"},enabled=(address.isNotBlank() || gps.isNotBlank()) && (gps.isBlank() || validGps(gps)),colors=ButtonDefaults.buttonColors(containerColor=Indigo)){Text("Přidat zastávku")}
         } else OutlinedTextField(query,{query=it;notesMode=false},modifier=Modifier.fillMaxWidth(),label={Text("Hledat adresu")},leadingIcon={Icon(Icons.Default.Search,null)},singleLine=true)
         val found=(0 until stops.length()).filter { i ->
