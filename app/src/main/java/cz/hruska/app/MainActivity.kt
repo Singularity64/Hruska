@@ -209,11 +209,6 @@ class MainActivity : ComponentActivity() {
              FilterChip(selected=turnDirection=="left",onClick={turnDirection=if(turnDirection=="left") "none" else "left"},label={Text("Doleva")},leadingIcon={Icon(Icons.Default.ArrowBack,null,tint=Color(0xFF24C65A))})
              FilterChip(selected=turnDirection=="right",onClick={turnDirection=if(turnDirection=="right") "none" else "right"},label={Text("Doprava")},leadingIcon={Icon(Icons.Default.ArrowForward,null,tint=Color(0xFF24C65A))})
             }
-            Text("Směr odbočení",color=Color.White)
-         Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
-          FilterChip(selected=turnDirection=="left",onClick={turnDirection=if(turnDirection=="left") "none" else "left"},label={Text("Doleva")},leadingIcon={Icon(Icons.Default.ArrowBack,null,tint=Color(0xFF24C65A))})
-          FilterChip(selected=turnDirection=="right",onClick={turnDirection=if(turnDirection=="right") "none" else "right"},label={Text("Doprava")},leadingIcon={Icon(Icons.Default.ArrowForward,null,tint=Color(0xFF24C65A))})
-         }
          Text("Barva rámečku adresy",color=Color.White)
             Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) { RouteColors.forEach { c -> Box(Modifier.size(30.dp).background(Color(c),CircleShape).then(if(stopColor==c) Modifier.border(3.dp,Color.White,CircleShape) else Modifier).clickable{stopColor=c}) } }
            }
